@@ -2,7 +2,7 @@
 #Dmitriy Litvin 2018
 
 #CONFIG
-IF_CFG='/etc/network/interfaces1'
+IF_CFG='/etc/network/interfaces'
 RESOLV='/etc/resolv.conf'
 HOSTNAME='vm1'
 
@@ -16,7 +16,7 @@ source /etc/network/interfaces.d/*
 
 # The loopback network interface
 auto lo
-iface lo inet loopback;
+iface lo inet loopback
 ' > $IF_CFG
 
 #EXTERNAL
@@ -32,6 +32,8 @@ echo "auto  $EXTERNAL_IF
 iface $EXTERNAL_IF inet static
 address $EXT_IP
 gateway $EXT_GW
+dns-nameservers 8.8.8.8
+dns-nameservers 8.8.4.4
 " >> $IF_CFG; fi
 
 #INTERNAL
@@ -42,12 +44,11 @@ address $INT_IP
 " >> $IF_CFG
 
 #INTERNAL VLAN
-modprobe 8021q
-vconfig add $INTERNAL_IF $VLAN >> /dev/null 2>&1
 echo '# Internal interface vlan' >> $IF_CFG
 echo "auto  $INTERNAL_IF.$VLAN
 iface $INTERNAL_IF.$VLAN inet static
 address $VLAN_IP
+vlan-raw-device $INTERNAL_IF
 " >> $IF_CFG
 
 # APLY
@@ -57,8 +58,6 @@ systemctl restart networking
 CUR_IP=$(ifconfig $EXTERNAL_IF | grep 'inet addr' | cut -d: -f2 | awk '{print $1}')
 hostname $HOSTNAME
 echo $CUR_IP $HOSTNAME > /etc/hosts
-echo 'nameserver 8.8.8.8' >> $RESOLV
-echo 'nameserver 8.8.4.4' >> $RESOLV
 ################################################################################################
 
 ##### NAT #######################################################################################
@@ -144,6 +143,6 @@ ssl_certificate_key /etc/ssl/certs/web.key;
 ln -s /etc/nginx/sites-available/$HOSTNAME /etc/nginx/sites-enabled/$HOSTNAME
 
 # APLY
-systemctl restart nginx1
+systemctl restart nginx
 ####################################################################################################
 exit $?
