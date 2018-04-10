@@ -2,65 +2,64 @@
 #Dmitriy Litvin 2018
 
 #CONFIG
-IF_CFG='/etc/network/interfaces'
+IF_CFG='/etc/network/interfaces1'
 RESOLV='/etc/resolv.conf'
 HOSTNAME='vm1'
 
 #IMPORT STRING
-source ./vm1.config
-CUR_IP=$(ifconfig $EXTERNAL_IF | grep 'inet addr' | cut -d: -f2 | awk '{print $1}')
-
-###### SYS CONFIG #############################################################################
-hostname $HOSTNAME
-echo $CUR_IP $HOSTNAME > /etc/hosts
-echo 'nameserver 8.8.8.8' >> $RESOLV
-echo 'nameserver 8.8.4.4' >> $RESOLV
-################################################################################################
+source $(dirname $0)/vm1.config
 
 ###### CONFIG ETHER INTERFACE ##################################################################
 #LO
-echo '# Config interfaces' > $IF_CFG
-echo 'source /etc/network/interfaces.d/*' >> $IF_CFG
-echo  >> $IF_CFG
-echo '# The loopback network interface' >> $IF_CFG
-echo 'auto lo' >> $IF_CFG
-echo 'iface lo inet loopback' >> $IF_CFG
-echo  >> $IF_CFG
+echo '# Config interfaces
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback;
+' > $IF_CFG
 
 #EXTERNAL
 echo '# External interface' >> $IF_CFG
 if [ "$EXT_IP" = "DHCP" ]; then
 #IF DHCP
-echo "auto  $EXTERNAL_IF" >> $IF_CFG
-echo "iface $EXTERNAL_IF inet dhcp" >> $IF_CFG
+echo "auto  $EXTERNAL_IF
+iface $EXTERNAL_IF inet dhcp
+" >> $IF_CFG
 #IF MAN
 else
-echo "auto  $EXTERNAL_IF" >> $IF_CFG
-echo "iface $EXTERNAL_IF inet static" >> $IF_CFG
-echo "address $EXT_IP" >> $IF_CFG
-echo "gateway $EXT_GW" >> $IF_CFG
-fi
-echo >> $IF_CFG
+echo "auto  $EXTERNAL_IF
+iface $EXTERNAL_IF inet static
+address $EXT_IP
+gateway $EXT_GW
+" >> $IF_CFG; fi
 
 #INTERNAL
 echo '# Internal interface' >> $IF_CFG
-echo "auto  $INTERNAL_IF" >> $IF_CFG
-echo "iface $INTERNAL_IF inet static" >> $IF_CFG
-echo "address $INT_IP" >> $IF_CFG
-echo  >> $IF_CFG
+echo "auto  $INTERNAL_IF
+iface $INTERNAL_IF inet static
+address $INT_IP
+" >> $IF_CFG
 
 #INTERNAL VLAN
 modprobe 8021q
 vconfig add $INTERNAL_IF $VLAN >> /dev/null 2>&1
 echo '# Internal interface vlan' >> $IF_CFG
-echo "auto  $INTERNAL_IF.$VLAN" >> $IF_CFG
-echo "iface $INTERNAL_IF.$VLAN inet static"  >> $IF_CFG
-echo "address $VLAN_IP" >> $IF_CFG
-echo  >> $IF_CFG
+echo "auto  $INTERNAL_IF.$VLAN
+iface $INTERNAL_IF.$VLAN inet static
+address $VLAN_IP
+" >> $IF_CFG
+
 # APLY
 systemctl restart networking
-#################################################################################################
 
+###### SYS CONFIG #############################################################################
+CUR_IP=$(ifconfig $EXTERNAL_IF | grep 'inet addr' | cut -d: -f2 | awk '{print $1}')
+hostname $HOSTNAME
+echo $CUR_IP $HOSTNAME > /etc/hosts
+echo 'nameserver 8.8.8.8' >> $RESOLV
+echo 'nameserver 8.8.4.4' >> $RESOLV
+################################################################################################
 
 ##### NAT #######################################################################################
 echo 1 > /proc/sys/net/ipv4/ip_forward
@@ -69,10 +68,6 @@ iptables -A FORWARD -i $EXTERNAL_IF -o $INTERNAL_IF -j ACCEPT
 iptables -t nat -A POSTROUTING -o $EXTERNAL_IF -j MASQUERADE
 iptables -A FORWARD -i $EXTERNAL_IF -m state --state ESTABLISHED,RELATED -j ACCEPT
 iptables -A FORWARD -i $EXTERNAL_IF -o $INTERNAL_IF -j REJECT
-#################################################################################################
-
-##### NGINX INSTALL##############################################################################
-apt update >> /dev/null 2>&1 && apt install nginx -y >> /dev/null 2>&1
 #################################################################################################
 
 ##### CERT ######################################################################################
@@ -115,6 +110,10 @@ openssl x509 -req -in /etc/ssl/certs/web.csr -CA /etc/ssl/certs/root-ca.crt  -CA
 cat /etc/ssl/certs/root-ca.crt >> /etc/ssl/certs/web.crt
 ############################################################################################
 
+##### NGINX INSTALL##############################################################################
+apt update >> /dev/null 2>&1 && apt install nginx -y >> /dev/null 2>&1
+#################################################################################################
+
 ##### NGINX CONFIG #########################################################################
 rm -r /etc/nginx/sites-enabled/* >> /dev/null 2>&1
 cp /etc/nginx/sites-available/default  /etc/nginx/sites-available/$HOSTNAME
@@ -144,4 +143,7 @@ ssl_certificate_key /etc/ssl/certs/web.key;
 
 ln -s /etc/nginx/sites-available/$HOSTNAME /etc/nginx/sites-enabled/$HOSTNAME
 
-service nginx restart
+# APLY
+systemctl restart nginx1
+####################################################################################################
+exit $?
