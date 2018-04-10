@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #CONFIG
-IF_CFG='/etc/network/interfaces1'
+IF_CFG='/etc/network/interfaces'
 RESOLV='/etc/resolv.conf1'
 HOSTNAME='vm1'
 
@@ -49,13 +49,17 @@ echo "address $INT_IP" >> $IF_CFG
 echo  >> $IF_CFG
 
 #INTERNAL VLAN
+modprobe 8021q
 vconfig add $INTERNAL_IF $VLAN >> /dev/null 2>&1
 echo '# Internal interface vlan' >> $IF_CFG
 echo "auto  $INTERNAL_IF.$VLAN" >> $IF_CFG
 echo "iface $INTERNAL_IF.$VLAN inet static"  >> $IF_CFG
 echo "address $VLAN_IP" >> $IF_CFG
 echo  >> $IF_CFG
+# APLY
+systemctl restart networking
 #################################################################################################
+
 
 ##### NAT #######################################################################################
 echo 1 > /proc/sys/net/ipv4/ip_forward
@@ -103,8 +107,40 @@ DNS.1   = $HOSTNAME" > /usr/lib/ssl/openssl-san.cnf
 
 #GENERATE KEY
 openssl genrsa -out /etc/ssl/certs/root-ca.key 4096 >> /dev/null 2>&1
-openssl req -x509 -new -key /etc/ssl/certs/root-ca.key -days 365 -out /etc/ssl/certs/root-ca.crt -subj "/C=UA/L=Kharkov/O=DLNet/CN=dlnet.kharkov.com" >> /dev/null 2>&1
+openssl req -x509 -new -key /etc/ssl/certs/root-ca.key -days 365 -out /etc/ssl/certs/root-ca.crt -subj "/C=UA/L=Kharkov/O=DLNet/OU=NOC/CN=dlnet.kharkov.com" >> /dev/null 2>&1
 openssl genrsa -out /etc/ssl/certs/web.key 4096 >> /dev/null 2>&1
-openssl req -new -key /etc/ssl/certs/web.key -out /etc/ssl/certs/web.csr -config /usr/lib/ssl/openssl-san.cnf -subj "/C=UA/L=Kharkov/O=DLNet/CN=$HOSTNAME"  >> /dev/null 2>&1
+openssl req -new -key /etc/ssl/certs/web.key -out /etc/ssl/certs/web.csr -config /usr/lib/ssl/openssl-san.cnf -subj "/C=UA/L=Kharkov/O=DLNet/OU=NOC/CN=$HOSTNAME"  >> /dev/null 2>&1
 openssl x509 -req -in /etc/ssl/certs/web.csr -CA /etc/ssl/certs/root-ca.crt  -CAkey /etc/ssl/certs/root-ca.key -CAcreateserial -out /etc/ssl/certs/web.crt -days 365 -extensions v3_req -extfile /usr/lib/ssl/openssl-san.cnf >> /dev/null 2>&1
+cat /etc/ssl/certs/root-ca.crt >> /etc/ssl/certs/web.crt
 ############################################################################################
+
+##### NGINX CONFIG #########################################################################
+rm -r /etc/nginx/sites-enabled/* >> /dev/null 2>&1
+cp /etc/nginx/sites-available/default  /etc/nginx/sites-available/$HOSTNAME
+
+echo '### CONFIG ###' > /etc/nginx/sites-available/$HOSTNAME
+echo "
+upstream $HOSTNAME {
+server $APACHE_VLAN_IP:80;
+}
+
+server {
+listen  $CUR_IP:$NGINX_PORT ssl $HOSTNAME_server;
+server_name $HOSTNAME
+ssl on;
+ssl_certificate /etc/ssl/certs/web.crt;
+ssl_certificate_key /etc/ssl/certs/web.key;
+
+ location / {
+            proxy_pass http://$HOSTNAME;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+	}
+
+} " >> /etc/nginx/sites-available/$HOSTNAME
+
+ln -s /etc/nginx/sites-available/$HOSTNAME /etc/nginx/sites-enabled/$HOSTNAME
+
+service nginx restart
