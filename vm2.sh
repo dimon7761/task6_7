@@ -42,7 +42,27 @@ systemctl restart networking
 
 ###### SYS CONFIG #############################################################################
 CUR_IP=$(ifconfig $INTERNAL_IF | grep 'inet addr' | cut -d: -f2 | awk '{print $1}')
+APH_IP=$(ifconfig $INTERNAL_IF.$VLAN | grep 'inet addr' | cut -d: -f2 | awk '{print $1}')
 hostname $HOSTNAME
 echo $CUR_IP $HOSTNAME > /etc/hosts
 ################################################################################################
 
+##### APACHE INSTALL##############################################################################
+apt update >> /dev/null 2>&1 && apt install apache2 -y >> /dev/null 2>&1
+#################################################################################################
+
+##### NGINX CONFIG #########################################################################
+rm -r /etc/apache2/sites-enabled/* >> /dev/null 2>&1
+cp /etc/apache2/sites-available/000-default.conf  /etc/apache2/sites-available/$HOSTNAME.conf
+echo '### CONFIG ###' > /etc/apache2/sites-available/$HOSTNAME.conf
+echo "
+<VirtualHost *:80>
+        ServerAdmin webmaster@localhost
+        DocumentRoot /var/www/html
+        ErrorLog \${APACHE_LOG_DIR}/error.log
+        CustomLog \${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>" >> /etc/apache2/sites-available/$HOSTNAME.conf
+
+ln -s /etc/apache2/sites-available/$HOSTNAME.conf /etc/apache2/sites-enabled/$HOSTNAME.conf
+echo "Listen $APH_IP:80" > /etc/apache2/ports.conf
+sed -i "/# Global configuration/a \ServerName $HOSTNAME" /etc/apache2/apache2.conf
