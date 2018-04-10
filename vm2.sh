@@ -30,9 +30,6 @@ dns-nameservers 8.8.4.4
 " >> $IF_CFG
 
 #INTERNAL VLAN
-modprobe 8021q
-#grep -q 8021q /etc/modules || echo 8021q >> /etc/modules
-#vconfig add $INTERNAL_IF $VLAN >> /dev/null 2>&1
 echo '# Internal interface vlan' >> $IF_CFG
 echo "auto $INTERNAL_IF.$VLAN
 iface $INTERNAL_IF.$VLAN inet static
