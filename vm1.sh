@@ -1,15 +1,16 @@
 #!/bin/bash
+#Dmitriy Litvin 2018
 
 #CONFIG
 IF_CFG='/etc/network/interfaces'
-RESOLV='/etc/resolv.conf1'
+RESOLV='/etc/resolv.conf'
 HOSTNAME='vm1'
 
 #IMPORT STRING
 source ./vm1.config
 CUR_IP=$(ifconfig $EXTERNAL_IF | grep 'inet addr' | cut -d: -f2 | awk '{print $1}')
 
-##### SYS CONFIG ###############################################################################
+###### SYS CONFIG #############################################################################
 hostname $HOSTNAME
 echo $CUR_IP $HOSTNAME > /etc/hosts
 echo 'nameserver 8.8.8.8' >> $RESOLV
@@ -17,7 +18,7 @@ echo 'nameserver 8.8.4.4' >> $RESOLV
 ################################################################################################
 
 ###### CONFIG ETHER INTERFACE ##################################################################
-#MAIN
+#LO
 echo '# Config interfaces' > $IF_CFG
 echo 'source /etc/network/interfaces.d/*' >> $IF_CFG
 echo  >> $IF_CFG
