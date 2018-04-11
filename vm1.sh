@@ -149,6 +149,6 @@ ssl_certificate_key /etc/ssl/certs/web.key;
 ln -s /etc/nginx/sites-available/$HOSTNAME /etc/nginx/sites-enabled/$HOSTNAME
 
 ##################### APLY ##################################
-echo "done" && systemctl restart nginx
+echo "###### done ######" && systemctl restart nginx
 #############################################################
 exit $?
