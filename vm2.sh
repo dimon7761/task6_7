@@ -29,7 +29,7 @@ dns-nameservers 8.8.4.4
 " >> $IF_CFG
 ifconfig $INTERNAL_IF $INT_IP
 route del default
-route add default $GW_IP
+route add default gw $GW_IP
 echo "nameserver 8.8.8.8" >> /etc/resolv.conf
 echo "nameserver 8.8.4.4" >> /etc/resolv.conf
 
