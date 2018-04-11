@@ -24,6 +24,7 @@ if [ "$EXT_IP" = "DHCP" ]; then
 echo "auto  $EXTERNAL_IF
 iface $EXTERNAL_IF inet dhcp
 " >> $IF_CFG
+route del default
 dhclient $EXTERNAL_IF
 ###### IF MAN #######
 else
@@ -35,7 +36,7 @@ dns-nameservers 8.8.8.8
 dns-nameservers 8.8.4.4
 " >> $IF_CFG
 ifconfig $EXTERNAL_IF $EXT_IP
-route del defaul
+route del default
 route add default gw $EXT_GW
 echo "nameserver 8.8.8.8" >> /etc/resolv.conf
 echo "nameserver 8.8.4.4" >> /etc/resolv.conf; fi
