@@ -9,8 +9,7 @@ HOSTNAME='vm1'
 #IMPORT STRING
 source $(dirname $0)/vm1.config
 
-###### CONFIG ETHER INTERFACE ##################################################################
-#LO
+################ CONFIG ETHER INTERFACE ######################
 echo '# Config interfaces
 source /etc/network/interfaces.d/*
 
@@ -18,15 +17,15 @@ source /etc/network/interfaces.d/*
 auto lo
 iface lo inet loopback
 ' > $IF_CFG
-
-#EXTERNAL
+####################### EXTERNAL ##############################
 echo '# External interface' >> $IF_CFG
 if [ "$EXT_IP" = "DHCP" ]; then
-#IF DHCP
+###### IF DHCP ######
 echo "auto  $EXTERNAL_IF
 iface $EXTERNAL_IF inet dhcp
 " >> $IF_CFG
-#IF MAN
+dhclient $EXTERNAL_IF
+###### IF MAN #######
 else
 echo "auto  $EXTERNAL_IF
 iface $EXTERNAL_IF inet static
@@ -34,43 +33,51 @@ address $EXT_IP
 gateway $EXT_GW
 dns-nameservers 8.8.8.8
 dns-nameservers 8.8.4.4
-" >> $IF_CFG; fi
+" >> $IF_CFG
+ifconfig $EXTERNAL_IF $EXT_IP
+route del defaul
+route add default gw $EXT_GW
+echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+echo "nameserver 8.8.4.4" >> /etc/resolv.conf; fi
+###############################################################
 
-#INTERNAL
+######################## INTERNAL #############################
 echo '# Internal interface' >> $IF_CFG
 echo "auto  $INTERNAL_IF
 iface $INTERNAL_IF inet static
 address $INT_IP
 " >> $IF_CFG
+ifconfig $INTERNAL_IF $INT_IP
+###############################################################
 
-#INTERNAL VLAN
+###################### INTERNAL VLAN ##########################
 echo '# Internal interface vlan' >> $IF_CFG
 echo "auto  $INTERNAL_IF.$VLAN
 iface $INTERNAL_IF.$VLAN inet static
 address $VLAN_IP
 vlan-raw-device $INTERNAL_IF
 " >> $IF_CFG
+modprobe 8021q
+vconfig add $INTERNAL_IF $VLAN 
+ifconfig $INTERNAL_IF.$VLAN $VLAN_IP
+###############################################################
 
-# APLY
-systemctl restart networking
-
-###### SYS CONFIG #############################################################################
+###################### SYS CONFIG #############################
 CUR_IP=$(ifconfig $EXTERNAL_IF | grep 'inet addr' | cut -d: -f2 | awk '{print $1}')
 hostname $HOSTNAME
 echo $CUR_IP $HOSTNAME > /etc/hosts
-################################################################################################
+###############################################################
 
-##### NAT #######################################################################################
+######################### NAT #################################
 echo 1 > /proc/sys/net/ipv4/ip_forward
 iptables -A INPUT -i lo -j ACCEPT
 iptables -A FORWARD -i $EXTERNAL_IF -o $INTERNAL_IF -j ACCEPT
 iptables -t nat -A POSTROUTING -o $EXTERNAL_IF -j MASQUERADE
 iptables -A FORWARD -i $EXTERNAL_IF -m state --state ESTABLISHED,RELATED -j ACCEPT
 iptables -A FORWARD -i $EXTERNAL_IF -o $INTERNAL_IF -j REJECT
-#################################################################################################
+###############################################################
 
-##### CERT ######################################################################################
-#CREATE CONFIG
+################# CERT CREATE CONFIG ##########################
 echo "
 [ req ]
 default_bits                = 4096
@@ -100,23 +107,22 @@ subjectAltName              = @alt_names
 IP.1   = $CUR_IP
 DNS.1   = $HOSTNAME" > /usr/lib/ssl/openssl-san.cnf 
 
-#GENERATE KEY
-openssl genrsa -out /etc/ssl/certs/root-ca.key 4096 >> /dev/null 2>&1
-openssl req -x509 -new -key /etc/ssl/certs/root-ca.key -days 365 -out /etc/ssl/certs/root-ca.crt -subj "/C=UA/L=Kharkov/O=DLNet/OU=NOC/CN=dlnet.kharkov.com" >> /dev/null 2>&1
-openssl genrsa -out /etc/ssl/certs/web.key 4096 >> /dev/null 2>&1
-openssl req -new -key /etc/ssl/certs/web.key -out /etc/ssl/certs/web.csr -config /usr/lib/ssl/openssl-san.cnf -subj "/C=UA/L=Kharkov/O=DLNet/OU=NOC/CN=$HOSTNAME"  >> /dev/null 2>&1
-openssl x509 -req -in /etc/ssl/certs/web.csr -CA /etc/ssl/certs/root-ca.crt  -CAkey /etc/ssl/certs/root-ca.key -CAcreateserial -out /etc/ssl/certs/web.crt -days 365 -extensions v3_req -extfile /usr/lib/ssl/openssl-san.cnf >> /dev/null 2>&1
+################# CERT GENERATE KEY ###########################
+openssl genrsa -out /etc/ssl/certs/root-ca.key 4096
+openssl req -x509 -new -key /etc/ssl/certs/root-ca.key -days 365 -out /etc/ssl/certs/root-ca.crt -subj "/C=UA/L=Kharkov/O=DLNet/OU=NOC/CN=dlnet.kharkov.com"
+openssl genrsa -out /etc/ssl/certs/web.key 4096
+openssl req -new -key /etc/ssl/certs/web.key -out /etc/ssl/certs/web.csr -config /usr/lib/ssl/openssl-san.cnf -subj "/C=UA/L=Kharkov/O=DLNet/OU=NOC/CN=$HOSTNAME"
+openssl x509 -req -in /etc/ssl/certs/web.csr -CA /etc/ssl/certs/root-ca.crt  -CAkey /etc/ssl/certs/root-ca.key -CAcreateserial -out /etc/ssl/certs/web.crt -days 365 -extensions v3_req -extfile /usr/lib/ssl/openssl-san.cnf
 cat /etc/ssl/certs/root-ca.crt >> /etc/ssl/certs/web.crt
-############################################################################################
+###############################################################
 
-##### NGINX INSTALL##############################################################################
-apt update >> /dev/null 2>&1 && apt install nginx -y >> /dev/null 2>&1
-#################################################################################################
+################### NGINX INSTALL##############################
+apt update >> /dev/null 2>&1 && apt install nginx -y
+###############################################################
 
-##### NGINX CONFIG #########################################################################
-rm -r /etc/nginx/sites-enabled/* >> /dev/null 2>&1
+################### NGINX CONFIG ##############################
+rm -r /etc/nginx/sites-enabled/*
 cp /etc/nginx/sites-available/default  /etc/nginx/sites-available/$HOSTNAME
-
 echo '### CONFIG ###' > /etc/nginx/sites-available/$HOSTNAME
 echo "
 upstream $HOSTNAME {
@@ -139,10 +145,9 @@ ssl_certificate_key /etc/ssl/certs/web.key;
 	}
 
 } " >> /etc/nginx/sites-available/$HOSTNAME
-
 ln -s /etc/nginx/sites-available/$HOSTNAME /etc/nginx/sites-enabled/$HOSTNAME
 
-# APLY
-systemctl restart nginx
-####################################################################################################
+##################### APLY ##################################
+echo "done" && systemctl restart nginx
+#############################################################
 exit $?
