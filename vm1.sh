@@ -61,6 +61,7 @@ vlan-raw-device $INTERNAL_IF
 modprobe 8021q
 vconfig add $INTERNAL_IF $VLAN 
 ifconfig $INTERNAL_IF.$VLAN $VLAN_IP
+sleep 2s
 ###############################################################
 
 ###################### SYS CONFIG #############################
