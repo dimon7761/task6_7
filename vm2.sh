@@ -43,7 +43,7 @@ vlan-raw-device $INTERNAL_IF
 modprobe 8021q
 vconfig add $INTERNAL_IF $VLAN 
 ifconfig $INTERNAL_IF.$VLAN $VLAN_IP
-
+sleep 2s
 ###### SYS CONFIG #############################################################################
 CUR_IP=$(ifconfig $INTERNAL_IF | grep 'inet addr' | cut -d: -f2 | awk '{print $1}')
 APH_IP=$(ifconfig $INTERNAL_IF.$VLAN | grep 'inet addr' | cut -d: -f2 | awk '{print $1}')
