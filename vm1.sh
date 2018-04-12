@@ -6,7 +6,7 @@ IF_CFG='/etc/network/interfaces'
 RESOLV='/etc/resolv.conf'
 HOSTNAME='vm1'
 
-#IMPORT STRING
+#IMPORT VAR
 source $(dirname $0)/vm1.config
 
 ################ CONFIG ETHER INTERFACE ######################
