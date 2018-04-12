@@ -118,7 +118,7 @@ cat /etc/ssl/certs/root-ca.crt >> /etc/ssl/certs/web.crt
 ###############################################################
 
 ################### NGINX INSTALL##############################
-apt update >> /dev/null 2>&1 && apt install nginx -y
+apt update && apt install nginx -y
 ###############################################################
 
 ################### NGINX CONFIG ##############################
