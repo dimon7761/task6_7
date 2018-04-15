@@ -54,7 +54,7 @@ echo $CUR_IP $HOSTNAME > /etc/hosts
 apt update && apt install apache2 -y
 #################################################################################################
 
-##### NGINX CONFIG #########################################################################
+##### APACHE CONFIG #########################################################################
 rm -r /etc/apache2/sites-enabled/*
 cp /etc/apache2/sites-available/000-default.conf  /etc/apache2/sites-available/$HOSTNAME.conf
 echo '### CONFIG ###' > /etc/apache2/sites-available/$HOSTNAME.conf
